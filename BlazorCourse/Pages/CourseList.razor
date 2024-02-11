@@ -1,0 +1,95 @@
+﻿@page "/"
+@inject HttpClient httpClient
+@inject NavigationManager NavigationManager
+@using BlazorCourse.Models
+@using Blazorise
+@using Blazorise.Bootstrap 
+@inherits AlertComponent
+
+@if (!string.IsNullOrEmpty(alertMessage))
+{
+    <div class="alert alert-@alertType alert-dismissible" role="alert">
+        @alertMessage
+        <button type="button" class="btn-close" aria-label="Close" @onclick="ClearAlert"></button>
+    </div>
+}
+<h3>Explore Our Courses!</h3>
+ <br />
+
+@if (courseList != null)
+{
+    <Table>
+        <TableHeader>
+            <tr>
+                <th>Category</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Duration</th>
+                <th>Price (in &#x20b9;)</th>
+                <th>Actions</th>
+            </tr>
+        </TableHeader>
+        <TableBody>
+            @foreach (var item in courseList)
+            {
+                <tr>
+                    <td>@item.CourseCategory.Name</td>
+                    <td>@item.CourseName</td>
+                    <td>@item.CourseDescription</td>
+                    <td>@item.CourseDuration</td>
+                    <td>&#x20b9; @item.CoursePrice</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteCourse(item.Id)">
+                            Delete
+                        </button>
+                        <button class="btn btn-sm btn-primary" @onclick="() => EditCourse(item.Id)">
+                            Edit
+                        </button>
+                    </td>
+                </tr>
+            
+            }
+        </TableBody>
+    </Table>
+}
+else
+{
+    <p>No Data found...</p>
+}
+@code {
+    private IEnumerable<Course> courseList;
+   
+    protected override async Task OnInitializedAsync()
+    { 
+        courseList = await httpClient.GetFromJsonAsync<IEnumerable<Course>>("https://localhost:7045/api/Course");
+    }
+    private async Task DeleteCourse(int courseId)
+    {
+        var response = await httpClient.DeleteAsync($"https://localhost:7045/api/Course/{courseId}");
+        if (response.IsSuccessStatusCode)
+        {
+            ShowAlert("Course deleted successfully.", "success");
+            await RefreshCourseList();
+        }
+        else
+        { 
+            var errorMessage = await response.Content.ReadAsStringAsync(); 
+            ShowAlert($"Failed to delete course: {errorMessage}", "danger");
+        }
+    }
+
+    private void EditCourse(int courseId)
+    {
+        var courseToEdit = courseList.FirstOrDefault(c => c.Id == courseId);
+        if (courseToEdit != null)
+        {
+            NavigationManager.NavigateTo($"/CreateCourse?edit=true&id={courseToEdit.Id}");
+        }
+    }
+
+    private async Task RefreshCourseList()
+    { 
+        courseList = await httpClient.GetFromJsonAsync<IEnumerable<Course>>("https://localhost:7045/api/Course");
+    }
+
+}
